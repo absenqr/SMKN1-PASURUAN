@@ -3,35 +3,47 @@
 <head>
   <title>ABSEN QR SMKN1-PASURUAN</title>
   <script src="https://unpkg.com/html5-qrcode"></script>
-  <style>
-    body {
-      margin: 0;
-      background-color: black;
-      color: white;
-      font-family: sans-serif;
-      text-align: center;
-    }
-    h1 {
-      margin-top: 10px;
-      font-size: 24px;
-    }
-    p {
-      margin-top: -10px;
-      font-size: 14px;
-      color: #ccc;
-    }
-    #scanner {
-      width: 100%;
-      max-width: 400px;
-      margin: auto;
-      padding: 10px;
-    }
-    #status {
-      margin-top: 10px;
-      font-size: 20px;
-      font-weight: bold;
-    }
-  </style>
+<style>
+  body {
+    margin: 0;
+    background-color: black;
+    color: white;
+    font-family: sans-serif;
+    text-align: center;
+  }
+
+  h1 {
+    margin-top: 10px;
+    font-size: 6vw; /* Ukuran dinamis */
+  }
+
+  p {
+    margin-top: -10px;
+    font-size: 3.5vw;
+    color: #ccc;
+  }
+
+  #scanner {
+    width: 90vw; /* Hampir penuh tapi masih ada margin */
+    max-width: 400px;
+    margin: auto;
+    padding: 10px;
+  }
+
+  #status {
+    margin-top: 10px;
+    font-size: 5vw;
+    font-weight: bold;
+    color: white;
+  }
+
+  @media (min-width: 768px) {
+    h1 { font-size: 24px; }
+    p { font-size: 16px; }
+    #status { font-size: 20px; }
+  }
+</style>
+
 </head>
 <body>
   <h1>ABSEN QR SMKN1-PASURUAN</h1>
