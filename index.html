@@ -1,134 +1,133 @@
+
 <!DOCTYPE html>
 <html lang="id">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>ABSEN SMKN1-PASURUAN</title>
   <script src="https://unpkg.com/html5-qrcode"></script>
   <style>
-    * { box-sizing: border-box; }
     body {
       margin: 0;
+      font-family: Arial, sans-serif;
       background-color: black;
       color: white;
-      font-family: sans-serif;
       text-align: center;
+      padding: 10px;
     }
     h1 {
-      font-size: 6vw;
-      margin: 1em 0 0.2em;
+      margin: 10px 0 5px;
+      font-size: 1.5em;
     }
     p {
-      font-size: 4vw;
-      margin-bottom: 1em;
-      color: #bbb;
+      margin: 0 0 20px;
+      font-size: 1em;
     }
-    #scanner {
-      width: 100vw;
-      max-width: 100%;
-      margin: 0 auto;
+    #reader {
+      width: 100%;
+      max-width: 400px;
+      margin: auto;
     }
     #status {
-      font-size: 4.5vw;
-      font-weight: bold;
-      margin: 1em 0;
-      color: white;
+      margin-top: 20px;
+      font-size: 1.2em;
+      color: lightgreen;
+    }
+    #startButton {
+      margin: 10px;
+      padding: 10px 20px;
+      font-size: 1em;
     }
     select {
-      padding: 10px;
-      font-size: 4vw;
-      margin-bottom: 1em;
-    }
-    @media (min-width: 768px) {
-      h1 { font-size: 32px; }
-      p { font-size: 18px; }
-      #status { font-size: 22px; }
-      select { font-size: 16px; }
+      padding: 5px;
+      font-size: 1em;
+      margin-bottom: 10px;
     }
   </style>
 </head>
 <body>
   <h1>ABSEN SMKN1-PASURUAN</h1>
   <p>Arahkan Kartu QR ke kamera untuk Scan Absen</p>
-  <div>
-    <select id="cameraSelect"></select>
-  </div>
-  <div id="scanner"></div>
+
+  <button onclick="unlockAudio()" id="startButton">Mulai</button>
+  <br>
+  <select id="cameraSelect"></select>
+  <div id="reader"></div>
   <div id="status"></div>
-  <audio id="beep" src="https://www.soundjay.com/buttons/sounds/beep-07.mp3"></audio>
+  <audio id="beep" src="https://www.soundjay.com/buttons/sounds/beep-07.mp3" preload="auto"></audio>
 
   <script>
-    const urlAPI = "https://script.google.com/macros/s/AKfycbwVUv1ij8NQFbkrMWv3yS3kFelqkthuQwkagUkdgDE2y-Cjl9rnP5pvWC7OToOtZPd3/exec"; // GANTI DENGAN URL GAS
-    const beep = document.getElementById("beep");
-    const statusDiv = document.getElementById("status");
-    const cameraSelect = document.getElementById("cameraSelect");
-    let scanner;
+    const urlAPI = "https://script.google.com/macros/s/AKfycbwVUv1ij8NQFbkrMWv3yS3kFelqkthuQwkagUkdgDE2y-Cjl9rnP5pvWC7OToOtZPd3/exec";
+    let html5QrCode;
+    let currentCameraId = null;
 
-    function showStatus(pesan, warna = "white") {
-      statusDiv.textContent = pesan;
-      statusDiv.style.color = warna;
+    function unlockAudio() {
+      const beep = document.getElementById("beep");
+      beep.play().then(() => {
+        beep.pause();
+        beep.currentTime = 0;
+        document.getElementById("startButton").style.display = "none";
+      });
     }
 
-    function startScanner(deviceId = null) {
-      if (scanner) {
-        scanner.stop().then(() => scanner.clear());
-      }
+    function showStatus(pesan, warna) {
+      const status = document.getElementById("status");
+      status.textContent = pesan;
+      status.style.color = warna;
+    }
 
-      scanner = new Html5Qrcode("scanner");
-
-      const config = {
-        fps: 10,
-        qrbox: function(w, h) {
-          const minEdge = Math.min(w, h);
-          return { width: minEdge * 0.8, height: minEdge * 0.8 };
-        }
-      };
-
-      scanner.start(
-        { deviceId: { exact: deviceId } },
-        config,
-        qrMessage => {
-          scanner.pause(); // pause sementara
-          fetch(urlAPI + "?token=" + encodeURIComponent(qrMessage))
+    function startScanner(cameraId) {
+      html5QrCode = new Html5Qrcode("reader");
+      html5QrCode.start(
+        cameraId,
+        {
+          fps: 10,
+          qrbox: 200
+        },
+        qrCodeMessage => {
+          html5QrCode.pause(); // prevent multiple scans
+          fetch(urlAPI + "?token=" + encodeURIComponent(qrCodeMessage))
             .then(res => res.json())
             .then(data => {
               if (data.status === "success") {
-                beep.play();
+                document.getElementById("beep").play();
                 showStatus("✅ Selamat datang, " + data.nama, "lightgreen");
               } else {
-                showStatus("❌ " + data.pesan, "red");
+                showStatus("❌ " + data.pesan, "orange");
               }
               setTimeout(() => {
-                showStatus("");
-                scanner.resume();
+                html5QrCode.resume();
+                showStatus("", "white");
               }, 2000);
             })
             .catch(() => {
-              showStatus("⚠️ Gagal mengirim data.", "orange");
-              setTimeout(() => {
-                showStatus("");
-                scanner.resume();
-              }, 2000);
+              showStatus("⚠️ Gagal memproses.", "red");
+              html5QrCode.resume();
             });
-        }
+        },
+        err => {}
       );
     }
 
     Html5Qrcode.getCameras().then(devices => {
-      if (devices.length === 0) {
-        showStatus("Tidak ada kamera ditemukan", "red");
-        return;
-      }
-
-      devices.forEach((device, index) => {
+      const cameraSelect = document.getElementById("cameraSelect");
+      devices.forEach(device => {
         const option = document.createElement("option");
         option.value = device.id;
-        option.text = device.label || `Camera ${index + 1}`;
+        option.text = device.label || `Camera ${cameraSelect.length + 1}`;
         cameraSelect.appendChild(option);
       });
-
-      cameraSelect.onchange = () => startScanner(cameraSelect.value);
-      startScanner(devices[0].id);
+      if (devices.length > 0) {
+        currentCameraId = devices[0].id;
+        cameraSelect.value = currentCameraId;
+        startScanner(currentCameraId);
+      }
+      cameraSelect.addEventListener("change", () => {
+        currentCameraId = cameraSelect.value;
+        html5QrCode.stop().then(() => startScanner(currentCameraId));
+      });
+    }).catch(err => {
+      showStatus("Tidak dapat mengakses kamera", "red");
     });
   </script>
 </body>
