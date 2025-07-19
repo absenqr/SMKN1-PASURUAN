@@ -4,17 +4,26 @@
   <title>Absensi QR Scanner</title>
   <script src="https://unpkg.com/html5-qrcode"></script>
   <style>
-    body { font-family: sans-serif; text-align: center; padding: 20px; background: #f2f2f2; }
+    body { font-family: sans-serif; text-align: center; padding: 20px; background: #f7f7f7; }
+    h2 { margin-bottom: 10px; }
+    #scanner { width: 100%; max-width: 400px; margin: auto; display: none; }
     #status { font-size: 1.5em; margin-top: 20px; font-weight: bold; }
-    #scanner { width: 100%; max-width: 400px; margin: auto; }
-    button { padding: 12px 24px; font-size: 1em; background: #2c7be5; color: white; border: none; border-radius: 6px; cursor: pointer; }
-    button:hover { background: #1b5ec9; }
+    button {
+      padding: 12px 24px;
+      font-size: 1em;
+      background: #2c7be5;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    button:hover { background: #1a5dc3; }
   </style>
 </head>
 <body>
   <h2>Scan QR untuk Absen</h2>
   <button onclick="initApp()">Mulai Scanner</button>
-  <div id="scanner" style="display:none;"></div>
+  <div id="scanner"></div>
   <div id="status"></div>
   <audio id="beep" src="https://www.soundjay.com/buttons/sounds/beep-07.mp3"></audio>
 
@@ -59,9 +68,7 @@
               });
           });
         },
-        errorMessage => {
-          // QR error, no need to show
-        }
+        errorMessage => {}
       );
     }
 
