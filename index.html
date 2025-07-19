@@ -4,14 +4,17 @@
   <title>Absensi QR Scanner</title>
   <script src="https://unpkg.com/html5-qrcode"></script>
   <style>
-    body { font-family: sans-serif; text-align: center; padding: 20px; }
-    #status { font-size: 1.5em; margin-top: 20px; }
+    body { font-family: sans-serif; text-align: center; padding: 20px; background: #f2f2f2; }
+    #status { font-size: 1.5em; margin-top: 20px; font-weight: bold; }
     #scanner { width: 100%; max-width: 400px; margin: auto; }
+    button { padding: 12px 24px; font-size: 1em; background: #2c7be5; color: white; border: none; border-radius: 6px; cursor: pointer; }
+    button:hover { background: #1b5ec9; }
   </style>
 </head>
 <body>
   <h2>Scan QR untuk Absen</h2>
-  <div id="scanner"></div>
+  <button onclick="initApp()">Mulai Scanner</button>
+  <div id="scanner" style="display:none;"></div>
   <div id="status"></div>
   <audio id="beep" src="https://www.soundjay.com/buttons/sounds/beep-07.mp3"></audio>
 
@@ -19,7 +22,7 @@
     const urlAPI = "https://script.google.com/macros/s/AKfycbwVUv1ij8NQFbkrMWv3yS3kFelqkthuQwkagUkdgDE2y-Cjl9rnP5pvWC7OToOtZPd3/exec";
     const statusDiv = document.getElementById("status");
     const beep = document.getElementById("beep");
-    const scanner = new Html5Qrcode("scanner"); // DIBUAT SEKALI SAJA
+    let scanner;
 
     function showStatus(pesan, warna) {
       statusDiv.textContent = pesan;
@@ -29,24 +32,21 @@
     function resetStatus() {
       setTimeout(() => {
         showStatus("", "black");
-        startScanner(); // ulangi scan
+        startScanner();
       }, 2000);
     }
 
     function startScanner() {
       scanner.start(
         { facingMode: "environment" },
-        {
-          fps: 10,
-          qrbox: 250
-        },
+        { fps: 10, qrbox: 250 },
         qrCodeMessage => {
           scanner.stop().then(() => {
             fetch(urlAPI + "?token=" + encodeURIComponent(qrCodeMessage))
               .then(res => res.json())
               .then(data => {
                 if (data.status === "success") {
-                  beep.play();
+                  beep.play().catch(e => console.log("Beep error:", e));
                   showStatus("✅ Selamat datang, " + data.nama, "green");
                 } else {
                   showStatus("❌ " + data.pesan, "red");
@@ -54,18 +54,23 @@
                 resetStatus();
               })
               .catch(err => {
-                showStatus("⚠️ Gagal kirim data.", "orange");
+                showStatus("⚠️ Gagal konek ke server", "orange");
                 resetStatus();
               });
           });
         },
         errorMessage => {
-          console.warn("QR error:", errorMessage);
+          // QR error, no need to show
         }
       );
     }
 
-    startScanner();
+    function initApp() {
+      document.querySelector("button").style.display = "none";
+      document.getElementById("scanner").style.display = "block";
+      scanner = new Html5Qrcode("scanner");
+      startScanner();
+    }
   </script>
 </body>
 </html>
