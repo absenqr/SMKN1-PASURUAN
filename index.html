@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Absensi QR Scanner</title>
+  <script src="https://unpkg.com/html5-qrcode"></script>
+  <style>
+    body { font-family: sans-serif; text-align: center; padding: 20px; }
+    #status { font-size: 1.5em; margin-top: 20px; }
+    #scanner { width: 100%; max-width: 400px; margin: auto; }
+  </style>
+</head>
+<body>
+  <h2>Scan QR untuk Absen</h2>
+  <div id="scanner"></div>
+  <div id="status"></div>
+  <audio id="beep" src="https://www.soundjay.com/buttons/sounds/beep-07.mp3"></audio>
+
+  <script>
+    const urlAPI = "https://script.google.com/macros/s/AKfycbwVUv1ij8NQFbkrMWv3yS3kFelqkthuQwkagUkdgDE2y-Cjl9rnP5pvWC7OToOtZPd3/exec";
+    const statusDiv = document.getElementById("status");
+    const beep = document.getElementById("beep");
+
+    function showStatus(pesan, warna) {
+      statusDiv.textContent = pesan;
+      statusDiv.style.color = warna;
+    }
+
+    function resetStatus() {
+      setTimeout(() => {
+        showStatus("", "black");
+        startScanner();
+      }, 2000);
+    }
+
+    function startScanner() {
+      const scanner = new Html5Qrcode("scanner");
+      scanner.start(
+        { facingMode: "environment" },
+        {
+          fps: 10,
+          qrbox: 250
+        },
+        qrCodeMessage => {
+          scanner.stop().then(() => {
+            fetch(urlAPI + "?token=" + encodeURIComponent(qrCodeMessage))
+              .then(res => res.json())
+              .then(data => {
+                if (data.status === "success") {
+                  beep.play();
+                  showStatus("✅ Selamat datang, " + data.nama, "green");
+                } else {
+                  showStatus("❌ " + data.pesan, "red");
+                }
+                resetStatus();
+              })
+              .catch(err => {
+                showStatus("⚠️ Gagal kirim data.", "orange");
+                resetStatus();
+              });
+          });
+        },
+        errorMessage => {}
+      );
+    }
+
+    startScanner();
+  </script>
+</body>
+</html>
