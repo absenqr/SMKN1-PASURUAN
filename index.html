@@ -1,24 +1,13 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Absensi QR SMKN1 PASURUAN</title>
+  <title>Absensi QR Sat-Set</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <script src="https://unpkg.com/html5-qrcode"></script>
   <style>
-    body {
-      font-family: sans-serif;
-      text-align: center;
-      padding: 20px;
-    }
-    #scanner {
-      width: 100%;
-      max-width: 400px;
-      margin: auto;
-    }
-    #status {
-      font-size: 1.3em;
-      margin-top: 15px;
-    }
+    body { font-family: sans-serif; text-align: center; padding: 20px; }
+    #scanner { width: 100%; max-width: 400px; margin: auto; }
+    #status { font-size: 1.3em; margin-top: 15px; }
   </style>
 </head>
 <body>
@@ -26,61 +15,60 @@
   <div id="scanner"></div>
   <div id="status">Menunggu scan...</div>
 
-  <!-- Suara BEEP -->
-  <audio id="beepSound" src="https://www.soundjay.com/button/sounds/beep-07.mp3"></audio>
+  <!-- Suara beep HARUS user trigger di awal -->
+  <audio id="beepSound" preload="auto">
+    <source src="https://www.soundjay.com/button/sounds/beep-07.mp3" type="audio/mpeg">
+  </audio>
 
   <script>
     const GAS_URL = "https://script.google.com/macros/s/AKfycbwVUv1ij8NQFbkrMWv3yS3kFelqkthuQwkagUkdgDE2y-Cjl9rnP5pvWC7OToOtZPd3/exec";
-    const scannerDiv = document.getElementById("scanner");
-    const statusDiv = document.getElementById("status");
     const beepSound = document.getElementById("beepSound");
+    const statusDiv = document.getElementById("status");
 
-    function showStatus(msg, color) {
+    const scanner = new Html5Qrcode("scanner");
+
+    function showStatus(msg, color = "black") {
       statusDiv.textContent = msg;
       statusDiv.style.color = color;
     }
 
-    function resetScan(scanner) {
-      setTimeout(() => {
-        showStatus("Menunggu scan...", "black");
-        scanner.start(
-          { facingMode: "environment" },
-          { fps: 10, qrbox: 250 },
-          onScanSuccess,
-          error => {}
-        );
-      }, 2500);
-    }
-
-    function onScanSuccess(qrCodeMessage) {
-      scanner.stop().then(() => {
-        fetch(GAS_URL + "?token=" + encodeURIComponent(qrCodeMessage))
-          .then(res => res.json())
-          .then(data => {
-            if (data.status === "success") {
-              beepSound.play();
-              showStatus("✅ Selamat datang, " + data.nama, "green");
-            } else {
-              showStatus("❌ " + data.pesan, "red");
-            }
-            resetScan(scanner);
-          })
-          .catch(err => {
-            showStatus("⚠️ Gagal kirim ke server", "orange");
-            resetScan(scanner);
+    function startScanner() {
+      scanner.start(
+        { facingMode: "environment" },
+        { fps: 10, qrbox: 200 },
+        qrCodeMessage => {
+          scanner.stop().then(() => {
+            fetch(GAS_URL + "?token=" + encodeURIComponent(qrCodeMessage))
+              .then(res => res.json())
+              .then(data => {
+                if (data.status === "success") {
+                  beepSound.play().catch(() => {});
+                  showStatus("✅ Selamat datang, " + data.nama, "green");
+                } else {
+                  showStatus("❌ " + data.pesan, "red");
+                }
+              })
+              .catch(() => {
+                showStatus("⚠️ Gagal konek", "orange");
+              })
+              .finally(() => {
+                setTimeout(() => {
+                  showStatus("Menunggu scan...", "black");
+                  startScanner();
+                }, 2000);
+              });
           });
-      });
+        },
+        error => {} // abaikan error
+      );
     }
 
-    const scanner = new Html5Qrcode("scanner");
+    // Trigger suara pertama biar bisa dipakai
+    document.body.addEventListener("click", () => {
+      beepSound.play().catch(() => {});
+    }, { once: true });
 
-    // Start kamera belakang
-    scanner.start(
-      { facingMode: "environment" },
-      { fps: 10, qrbox: 250 },
-      onScanSuccess,
-      error => {}
-    );
+    startScanner();
   </script>
 </body>
 </html>
