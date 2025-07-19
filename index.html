@@ -1,129 +1,143 @@
+
 <!DOCTYPE html>
 <html>
 <head>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ABSEN SMKN1-PASURUAN</title>
   <script src="https://unpkg.com/html5-qrcode"></script>
   <style>
     body {
+      margin: 0;
+      padding: 0;
       background-color: #000;
       color: #fff;
       font-family: sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: start;
+      height: 100vh;
       text-align: center;
-      padding: 10px;
+    }
+    h1 {
+      margin-top: 20px;
+      font-size: 1.5em;
     }
     #scanner {
       width: 100%;
       max-width: 400px;
-      margin: auto;
+      margin-top: 10px;
     }
     #status {
       font-size: 1.2em;
       margin-top: 20px;
     }
-    #startButton {
-      font-size: 1em;
-      padding: 10px 20px;
-      margin-bottom: 10px;
+    #start-button {
+      background-color: #04AA6D;
       border: none;
-      background-color: #28a745;
       color: white;
+      padding: 10px 20px;
+      text-align: center;
+      text-decoration: none;
+      font-size: 16px;
+      margin-top: 20px;
+      cursor: pointer;
       border-radius: 5px;
     }
+    #start-button:disabled {
+      background-color: #444;
+      cursor: not-allowed;
+    }
     select {
-      margin-top: 10px;
+      margin-top: 15px;
       padding: 5px;
-      border-radius: 5px;
+      font-size: 14px;
     }
   </style>
 </head>
 <body>
-  <h2>ABSEN SMKN1-PASURUAN</h2>
+  <h1>ABSEN SMKN1-PASURUAN</h1>
   <p>Arahkan Kartu QR ke kamera untuk Scan Absen</p>
 
-  <button id="startButton" onclick="startScanning()">Mulai</button>
-  <br>
-  <select id="cameraSelect" style="display:none;"></select>
+  <select id="camera-select"></select>
+  <button id="start-button">Mulai Scan</button>
 
   <div id="scanner"></div>
   <div id="status"></div>
 
+  <audio id="beep" src="https://absenqr.github.io/SMKN1-PASURUAN/beep.mp3"></audio>
+
   <script>
     const urlAPI = "https://script.google.com/macros/s/AKfycbwVUv1ij8NQFbkrMWv3yS3kFelqkthuQwkagUkdgDE2y-Cjl9rnP5pvWC7OToOtZPd3/exec";
+    const statusDiv = document.getElementById("status");
+    const beep = document.getElementById("beep");
+    const cameraSelect = document.getElementById("camera-select");
+    const startButton = document.getElementById("start-button");
+
     let scanner;
-    let audioContext, beepBuffer;
 
-    // Load beep sound
-    async function loadBeep() {
-      audioContext = new (window.AudioContext || window.webkitAudioContext)();
-      const res = await fetch("https://www.soundjay.com/buttons/sounds/beep-07.mp3");
-      const arrayBuffer = await res.arrayBuffer();
-      beepBuffer = await audioContext.decodeAudioData(arrayBuffer);
+    function showStatus(msg, color) {
+      statusDiv.textContent = msg;
+      statusDiv.style.color = color;
     }
 
-    function playBeep() {
-      const source = audioContext.createBufferSource();
-      source.buffer = beepBuffer;
-      source.connect(audioContext.destination);
-      source.start();
+    function resetScanner() {
+      setTimeout(() => {
+        statusDiv.textContent = "";
+        scanner.resume();
+      }, 2000);
     }
 
-    async function startScanning() {
-      document.getElementById("startButton").style.display = "none";
-      await loadBeep();
-
+    async function initScanner(cameraId) {
       scanner = new Html5Qrcode("scanner");
-
-      Html5Qrcode.getCameras().then(devices => {
-        if (devices && devices.length) {
-          const select = document.getElementById("cameraSelect");
-          select.style.display = "inline";
-          devices.forEach(d => {
-            const option = document.createElement("option");
-            option.value = d.id;
-            option.text = d.label || `Camera ${select.length + 1}`;
-            select.appendChild(option);
-          });
-
-          startCamera(select.value);
-
-          select.addEventListener("change", () => {
-            scanner.stop().then(() => startCamera(select.value));
-          });
-        }
-      });
-    }
-
-    function startCamera(cameraId) {
-      scanner.start(
-        cameraId,
-        { fps: 10, qrbox: 250 },
+      await scanner.start(
+        { deviceId: { exact: cameraId }},
+        {
+          fps: 10,
+          qrbox: { width: 250, height: 250 }
+        },
         qrCodeMessage => {
           scanner.pause();
           fetch(urlAPI + "?token=" + encodeURIComponent(qrCodeMessage))
             .then(res => res.json())
             .then(data => {
               if (data.status === "success") {
-                playBeep();
+                beep.play();
                 showStatus("✅ Selamat datang, " + data.nama, "lightgreen");
               } else {
-                showStatus("❌ " + data.pesan, "orange");
+                showStatus("❌ " + data.pesan, "red");
               }
-              setTimeout(() => scanner.resume(), 2000);
+              resetScanner();
             })
             .catch(() => {
-              showStatus("⚠️ Gagal mengirim data.", "red");
-              setTimeout(() => scanner.resume(), 2000);
+              showStatus("⚠️ Gagal mengirim data", "orange");
+              resetScanner();
             });
         },
-        error => { }
+        err => {}
       );
     }
 
-    function showStatus(text, color) {
-      const status = document.getElementById("status");
-      status.textContent = text;
-      status.style.color = color;
-    }
+    Html5Qrcode.getCameras().then(devices => {
+      if (devices.length) {
+        devices.forEach(d => {
+          const opt = document.createElement("option");
+          opt.value = d.id;
+          opt.text = d.label || "Camera";
+          cameraSelect.appendChild(opt);
+        });
+        startButton.disabled = false;
+      }
+    });
+
+    startButton.addEventListener("click", () => {
+      const selectedCamera = cameraSelect.value;
+      if (selectedCamera) {
+        document.getElementById("start-button").style.display = "none";
+        cameraSelect.style.display = "none";
+        initScanner(selectedCamera);
+      }
+    });
   </script>
 </body>
 </html>
