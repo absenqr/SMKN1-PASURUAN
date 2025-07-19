@@ -1,134 +1,129 @@
-
 <!DOCTYPE html>
-<html lang="id">
+<html>
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>ABSEN SMKN1-PASURUAN</title>
   <script src="https://unpkg.com/html5-qrcode"></script>
   <style>
     body {
-      margin: 0;
-      font-family: Arial, sans-serif;
-      background-color: black;
-      color: white;
+      background-color: #000;
+      color: #fff;
+      font-family: sans-serif;
       text-align: center;
       padding: 10px;
     }
-    h1 {
-      margin: 10px 0 5px;
-      font-size: 1.5em;
-    }
-    p {
-      margin: 0 0 20px;
-      font-size: 1em;
-    }
-    #reader {
+    #scanner {
       width: 100%;
       max-width: 400px;
       margin: auto;
     }
     #status {
-      margin-top: 20px;
       font-size: 1.2em;
-      color: lightgreen;
+      margin-top: 20px;
     }
     #startButton {
-      margin: 10px;
-      padding: 10px 20px;
       font-size: 1em;
+      padding: 10px 20px;
+      margin-bottom: 10px;
+      border: none;
+      background-color: #28a745;
+      color: white;
+      border-radius: 5px;
     }
     select {
+      margin-top: 10px;
       padding: 5px;
-      font-size: 1em;
-      margin-bottom: 10px;
+      border-radius: 5px;
     }
   </style>
 </head>
 <body>
-  <h1>ABSEN SMKN1-PASURUAN</h1>
+  <h2>ABSEN SMKN1-PASURUAN</h2>
   <p>Arahkan Kartu QR ke kamera untuk Scan Absen</p>
 
-  <button onclick="unlockAudio()" id="startButton">Mulai</button>
+  <button id="startButton" onclick="startScanning()">Mulai</button>
   <br>
-  <select id="cameraSelect"></select>
-  <div id="reader"></div>
+  <select id="cameraSelect" style="display:none;"></select>
+
+  <div id="scanner"></div>
   <div id="status"></div>
-  <audio id="beep" src="https://www.soundjay.com/buttons/sounds/beep-07.mp3" preload="auto"></audio>
 
   <script>
     const urlAPI = "https://script.google.com/macros/s/AKfycbwVUv1ij8NQFbkrMWv3yS3kFelqkthuQwkagUkdgDE2y-Cjl9rnP5pvWC7OToOtZPd3/exec";
-    let html5QrCode;
-    let currentCameraId = null;
+    let scanner;
+    let audioContext, beepBuffer;
 
-    function unlockAudio() {
-      const beep = document.getElementById("beep");
-      beep.play().then(() => {
-        beep.pause();
-        beep.currentTime = 0;
-        document.getElementById("startButton").style.display = "none";
+    // Load beep sound
+    async function loadBeep() {
+      audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      const res = await fetch("https://www.soundjay.com/buttons/sounds/beep-07.mp3");
+      const arrayBuffer = await res.arrayBuffer();
+      beepBuffer = await audioContext.decodeAudioData(arrayBuffer);
+    }
+
+    function playBeep() {
+      const source = audioContext.createBufferSource();
+      source.buffer = beepBuffer;
+      source.connect(audioContext.destination);
+      source.start();
+    }
+
+    async function startScanning() {
+      document.getElementById("startButton").style.display = "none";
+      await loadBeep();
+
+      scanner = new Html5Qrcode("scanner");
+
+      Html5Qrcode.getCameras().then(devices => {
+        if (devices && devices.length) {
+          const select = document.getElementById("cameraSelect");
+          select.style.display = "inline";
+          devices.forEach(d => {
+            const option = document.createElement("option");
+            option.value = d.id;
+            option.text = d.label || `Camera ${select.length + 1}`;
+            select.appendChild(option);
+          });
+
+          startCamera(select.value);
+
+          select.addEventListener("change", () => {
+            scanner.stop().then(() => startCamera(select.value));
+          });
+        }
       });
     }
 
-    function showStatus(pesan, warna) {
-      const status = document.getElementById("status");
-      status.textContent = pesan;
-      status.style.color = warna;
-    }
-
-    function startScanner(cameraId) {
-      html5QrCode = new Html5Qrcode("reader");
-      html5QrCode.start(
+    function startCamera(cameraId) {
+      scanner.start(
         cameraId,
-        {
-          fps: 10,
-          qrbox: 200
-        },
+        { fps: 10, qrbox: 250 },
         qrCodeMessage => {
-          html5QrCode.pause(); // prevent multiple scans
+          scanner.pause();
           fetch(urlAPI + "?token=" + encodeURIComponent(qrCodeMessage))
             .then(res => res.json())
             .then(data => {
               if (data.status === "success") {
-                document.getElementById("beep").play();
+                playBeep();
                 showStatus("✅ Selamat datang, " + data.nama, "lightgreen");
               } else {
                 showStatus("❌ " + data.pesan, "orange");
               }
-              setTimeout(() => {
-                html5QrCode.resume();
-                showStatus("", "white");
-              }, 2000);
+              setTimeout(() => scanner.resume(), 2000);
             })
             .catch(() => {
-              showStatus("⚠️ Gagal memproses.", "red");
-              html5QrCode.resume();
+              showStatus("⚠️ Gagal mengirim data.", "red");
+              setTimeout(() => scanner.resume(), 2000);
             });
         },
-        err => {}
+        error => { }
       );
     }
 
-    Html5Qrcode.getCameras().then(devices => {
-      const cameraSelect = document.getElementById("cameraSelect");
-      devices.forEach(device => {
-        const option = document.createElement("option");
-        option.value = device.id;
-        option.text = device.label || `Camera ${cameraSelect.length + 1}`;
-        cameraSelect.appendChild(option);
-      });
-      if (devices.length > 0) {
-        currentCameraId = devices[0].id;
-        cameraSelect.value = currentCameraId;
-        startScanner(currentCameraId);
-      }
-      cameraSelect.addEventListener("change", () => {
-        currentCameraId = cameraSelect.value;
-        html5QrCode.stop().then(() => startScanner(currentCameraId));
-      });
-    }).catch(err => {
-      showStatus("Tidak dapat mengakses kamera", "red");
-    });
+    function showStatus(text, color) {
+      const status = document.getElementById("status");
+      status.textContent = text;
+      status.style.color = color;
+    }
   </script>
 </body>
 </html>
