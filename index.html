@@ -1,74 +1,96 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Absensi QR Sat-Set</title>
+  <title>Absensi QR</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <script src="https://unpkg.com/html5-qrcode"></script>
   <style>
-    body { font-family: sans-serif; text-align: center; padding: 20px; }
+    body { font-family: sans-serif; text-align: center; margin: 0; padding: 20px; }
     #scanner { width: 100%; max-width: 400px; margin: auto; }
-    #status { font-size: 1.3em; margin-top: 15px; }
+    #status { margin-top: 20px; font-size: 1.2em; }
+    select { margin: 10px; padding: 5px; font-size: 1em; }
   </style>
 </head>
 <body>
   <h2>Scan QR untuk Absen</h2>
+
+  <select id="cameraSelect"></select>
   <div id="scanner"></div>
   <div id="status">Menunggu scan...</div>
 
-  <!-- Suara beep HARUS user trigger di awal -->
-  <audio id="beepSound" preload="auto">
+  <audio id="beep" preload="auto">
     <source src="https://www.soundjay.com/button/sounds/beep-07.mp3" type="audio/mpeg">
   </audio>
 
   <script>
     const GAS_URL = "https://script.google.com/macros/s/AKfycbwVUv1ij8NQFbkrMWv3yS3kFelqkthuQwkagUkdgDE2y-Cjl9rnP5pvWC7OToOtZPd3/exec";
-    const beepSound = document.getElementById("beepSound");
+    const beep = document.getElementById("beep");
     const statusDiv = document.getElementById("status");
+    const cameraSelect = document.getElementById("cameraSelect");
 
-    const scanner = new Html5Qrcode("scanner");
+    let scanner = null;
 
     function showStatus(msg, color = "black") {
       statusDiv.textContent = msg;
       statusDiv.style.color = color;
     }
 
-    function startScanner() {
+    async function startScanner(cameraId) {
+      if (scanner) await scanner.stop();
+
+      scanner = new Html5Qrcode("scanner");
+
       scanner.start(
-        { facingMode: "environment" },
+        cameraId,
         { fps: 10, qrbox: 200 },
-        qrCodeMessage => {
+        qrMsg => {
           scanner.stop().then(() => {
-            fetch(GAS_URL + "?token=" + encodeURIComponent(qrCodeMessage))
+            fetch(GAS_URL + "?token=" + encodeURIComponent(qrMsg))
               .then(res => res.json())
               .then(data => {
                 if (data.status === "success") {
-                  beepSound.play().catch(() => {});
+                  beep.play().catch(() => {});
                   showStatus("✅ Selamat datang, " + data.nama, "green");
                 } else {
                   showStatus("❌ " + data.pesan, "red");
                 }
               })
               .catch(() => {
-                showStatus("⚠️ Gagal konek", "orange");
+                showStatus("⚠️ Gagal koneksi", "orange");
               })
               .finally(() => {
                 setTimeout(() => {
                   showStatus("Menunggu scan...", "black");
-                  startScanner();
+                  startScanner(cameraId); // lanjut lagi
                 }, 2000);
               });
           });
         },
-        error => {} // abaikan error
+        err => {}
       );
     }
 
-    // Trigger suara pertama biar bisa dipakai
-    document.body.addEventListener("click", () => {
-      beepSound.play().catch(() => {});
-    }, { once: true });
+    Html5Qrcode.getCameras().then(devices => {
+      devices.forEach(cam => {
+        const option = document.createElement("option");
+        option.value = cam.id;
+        option.textContent = cam.label || `Kamera ${cameraSelect.length + 1}`;
+        cameraSelect.appendChild(option);
+      });
 
-    startScanner();
+      if (devices.length > 0) {
+        cameraSelect.addEventListener("change", () => {
+          startScanner(cameraSelect.value);
+        });
+
+        startScanner(devices[0].id); // default kamera pertama
+      } else {
+        showStatus("Tidak ada kamera ditemukan", "red");
+      }
+    });
+
+    // Play audio permission
+    document.body.addEventListener("click", () => beep.play().catch(() => {}), { once: true });
   </script>
 </body>
 </html>
