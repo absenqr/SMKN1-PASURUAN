@@ -19,6 +19,7 @@
     const urlAPI = "https://script.google.com/macros/s/AKfycbwVUv1ij8NQFbkrMWv3yS3kFelqkthuQwkagUkdgDE2y-Cjl9rnP5pvWC7OToOtZPd3/exec";
     const statusDiv = document.getElementById("status");
     const beep = document.getElementById("beep");
+    const scanner = new Html5Qrcode("scanner"); // DIBUAT SEKALI SAJA
 
     function showStatus(pesan, warna) {
       statusDiv.textContent = pesan;
@@ -28,12 +29,11 @@
     function resetStatus() {
       setTimeout(() => {
         showStatus("", "black");
-        startScanner();
+        startScanner(); // ulangi scan
       }, 2000);
     }
 
     function startScanner() {
-      const scanner = new Html5Qrcode("scanner");
       scanner.start(
         { facingMode: "environment" },
         {
@@ -59,7 +59,9 @@
               });
           });
         },
-        errorMessage => {}
+        errorMessage => {
+          console.warn("QR error:", errorMessage);
+        }
       );
     }
 
