@@ -70,7 +70,7 @@
               .then(data => {
                 if (data.status === "success") {
                   beep.play();
-                  showStatus("✅ " + data.nama, "lime");
+                  showStatus("ABSEN BERHASIL ✅ " + data.nama, "lime");
                 } else {
                   showStatus("❌ " + data.pesan, "red");
                 }
