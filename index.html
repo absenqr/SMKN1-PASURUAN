@@ -8,20 +8,20 @@
     h2 { margin-bottom: 10px; }
     #scanner { width: 100%; max-width: 400px; margin: auto; display: none; }
     #status { font-size: 1.5em; margin-top: 20px; font-weight: bold; }
-    button {
+    button, select {
       padding: 12px 24px;
       font-size: 1em;
-      background: #2c7be5;
-      color: white;
-      border: none;
+      margin-top: 10px;
       border-radius: 6px;
-      cursor: pointer;
+      border: none;
     }
+    button { background: #2c7be5; color: white; cursor: pointer; }
     button:hover { background: #1a5dc3; }
   </style>
 </head>
 <body>
   <h2>Scan QR untuk Absen</h2>
+  <select id="camera-select" style="display:none;"></select><br>
   <button onclick="initApp()">Mulai Scanner</button>
   <div id="scanner"></div>
   <div id="status"></div>
@@ -31,6 +31,7 @@
     const urlAPI = "https://script.google.com/macros/s/AKfycbwVUv1ij8NQFbkrMWv3yS3kFelqkthuQwkagUkdgDE2y-Cjl9rnP5pvWC7OToOtZPd3/exec";
     const statusDiv = document.getElementById("status");
     const beep = document.getElementById("beep");
+    const cameraSelect = document.getElementById("camera-select");
     let scanner;
 
     function showStatus(pesan, warna) {
@@ -41,13 +42,13 @@
     function resetStatus() {
       setTimeout(() => {
         showStatus("", "black");
-        startScanner();
+        startScanner(cameraSelect.value);
       }, 2000);
     }
 
-    function startScanner() {
+    function startScanner(cameraId) {
       scanner.start(
-        { facingMode: "environment" },
+        cameraId,
         { fps: 10, qrbox: 250 },
         qrCodeMessage => {
           scanner.stop().then(() => {
@@ -75,8 +76,30 @@
     function initApp() {
       document.querySelector("button").style.display = "none";
       document.getElementById("scanner").style.display = "block";
+      cameraSelect.style.display = "inline";
+
+      // Panaskan suara biar bisa dipakai
+      beep.play().then(() => {
+        beep.pause();
+        beep.currentTime = 0;
+      });
+
       scanner = new Html5Qrcode("scanner");
-      startScanner();
+      Html5Qrcode.getCameras().then(devices => {
+        cameraSelect.innerHTML = "";
+        devices.forEach(d => {
+          const opt = document.createElement("option");
+          opt.value = d.id;
+          opt.text = d.label || `Camera ${cameraSelect.length + 1}`;
+          cameraSelect.appendChild(opt);
+        });
+        if (devices.length > 0) {
+          startScanner(devices[0].id); // Start pertama pakai kamera pertama
+        }
+        cameraSelect.onchange = () => {
+          scanner.stop().then(() => startScanner(cameraSelect.value));
+        };
+      });
     }
   </script>
 </body>
